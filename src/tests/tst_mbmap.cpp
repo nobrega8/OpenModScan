@@ -1,7 +1,6 @@
 #include <QtTest>
 #include <tuple>
 #include "mbmap.h"
-#include "displaydefinition.h"
 
 ///
 /// \brief Tests of reading .mbmap.json device maps and laying them out in windows
@@ -21,6 +20,7 @@ private slots:
     void ignoresByteOrderForBool();
     void placesTheLastAddressWithBase1();
     void pollsTheLastAddressWithBase1();
+    void widensTheAddressSpaceForTheMap();
     void keepsWriteOnlyBarriersOfRegistersItCannotShow();
     void keepsDownloadedMapsInsideTheirFolder();
 };
@@ -309,7 +309,7 @@ void TestMbMap::placesTheLastAddressWithBase1()
 
 ///
 /// \brief A window placed at the last wire address passes the check the
-/// window makes before polling, as MainWindow::openMap() sets it up.
+/// window makes before polling.
 ///
 void TestMbMap::pollsTheLastAddressWithBase1()
 {
@@ -323,11 +323,7 @@ void TestMbMap::pollsTheLastAddressWithBase1()
     QCOMPARE(views.size(), 1);
 
     DisplayDefinition dd;
-    dd.PointType = views[0].Area;
-    const auto placement = MbMap::placement(views[0], map.AddressBase);
-    dd.ZeroBasedAddress = placement.ZeroBased;
-    dd.PointAddress = placement.Address;
-    dd.Length = views[0].Length;
+    MbMap::setUpWindow(views[0], map.AddressBase, dd);
     dd.normalize();
 
     QCOMPARE(dd.PointAddress, quint16(65535));
@@ -340,6 +336,39 @@ void TestMbMap::pollsTheLastAddressWithBase1()
     QVERIFY(!ModbusLimits::isReadable(65536, false, 2, AddressSpace::Addr6Digits));
     QVERIFY(ModbusLimits::isReadable(9998, true, 1, AddressSpace::Addr5Digits));
     QVERIFY(!ModbusLimits::isReadable(9999, true, 1, AddressSpace::Addr5Digits));
+}
+
+///
+/// \brief A window whose registers lie past a 5-digit address space opens
+/// in a 6-digit one instead of being moved to another address; the others
+/// keep the address space the window had.
+///
+void TestMbMap::widensTheAddressSpaceForTheMap()
+{
+    const auto map = parse(R"({
+        "mbmap": 2, "vendor": "V", "model": "M", "address_base": 1,
+        "registers": [
+            {"name": "Low", "area": "holding", "address": 100, "type": "uint16"},
+            {"name": "High", "area": "holding", "address": 40001, "type": "uint16"}
+        ]
+    })");
+    const auto views = map.views();
+    QCOMPARE(views.size(), 2);
+
+    DisplayDefinition low;
+    low.AddrSpace = AddressSpace::Addr5Digits;
+    MbMap::setUpWindow(views[0], map.AddressBase, low);
+    low.normalize();
+    QCOMPARE(low.AddrSpace, AddressSpace::Addr5Digits);
+    QCOMPARE(low.PointAddress, quint16(100));
+
+    DisplayDefinition high;
+    high.AddrSpace = AddressSpace::Addr5Digits;
+    MbMap::setUpWindow(views[1], map.AddressBase, high);
+    high.normalize();
+    QCOMPARE(high.AddrSpace, AddressSpace::Addr6Digits);
+    QCOMPARE(high.PointAddress, quint16(40001));
+    QVERIFY(ModbusLimits::isReadable(high.PointAddress, high.ZeroBasedAddress, high.Length, high.AddrSpace));
 }
 
 ///

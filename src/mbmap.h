@@ -6,6 +6,7 @@
 #include <QString>
 #include <QModbusDataUnit>
 #include "enums.h"
+#include "displaydefinition.h"
 
 ///
 /// \brief A Modbus device map in the .mbmap format, version 2
@@ -140,6 +141,16 @@ struct MbMap
     /// 16-bit start address cannot hold: the window counts from 0 instead.
     ///
     static Placement placement(const View& view, int addressBase);
+
+    ///
+    /// \brief Sets up a window's display definition for a view of the map
+    /// \param view A view of this map
+    /// \param addressBase The map's address_base (0 or 1)
+    /// \param dd The window's display definition: its area, start address,
+    /// numbering and length are set, and its address space becomes 6 digits
+    /// when the view lies past the end of a 5-digit one
+    ///
+    static void setUpWindow(const View& view, int addressBase, DisplayDefinition& dd);
 
     ///
     /// \brief The map's name for window titles and dialogs

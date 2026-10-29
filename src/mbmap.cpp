@@ -428,6 +428,25 @@ MbMap::Placement MbMap::placement(const View& view, int addressBase)
 }
 
 ///
+/// \brief Sets up a window's display definition for a view of the map
+/// \param view A view of this map
+/// \param addressBase The map's address_base (0 or 1)
+/// \param dd The window's display definition: its area, start address,
+/// numbering and length are set, and its address space becomes 6 digits
+/// when the view lies past the end of a 5-digit one
+///
+void MbMap::setUpWindow(const View& view, int addressBase, DisplayDefinition& dd)
+{
+    const auto start = placement(view, addressBase);
+    dd.PointType = view.Area;
+    dd.ZeroBasedAddress = start.ZeroBased;
+    dd.PointAddress = start.Address;
+    dd.Length = view.Length;
+    if(!ModbusLimits::isReadable(dd.PointAddress, dd.ZeroBasedAddress, dd.Length, dd.AddrSpace))
+        dd.AddrSpace = AddressSpace::Addr6Digits;
+}
+
+///
 /// \brief Where a map of the library is kept inside a folder
 /// \param directory The folder the maps are kept in
 /// \param path The map's path in the library's index, e.g. "acme/em-100.mbmap.json"

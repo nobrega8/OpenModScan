@@ -1459,11 +1459,7 @@ void MainWindow::openMap(const QString& filename)
         auto dd = frm->displayDefinition();
         dd.FormName = view.Title;
         dd.DeviceId = map.UnitId;
-        dd.PointType = view.Area;
-        const auto placement = MbMap::placement(view, map.AddressBase);
-        dd.ZeroBasedAddress = placement.ZeroBased;
-        dd.PointAddress = placement.Address;
-        dd.Length = view.Length;
+        MbMap::setUpWindow(view, map.AddressBase, dd);
         frm->setDisplayDefinition(dd);
         frm->setDataDisplayMode(view.Mode);
         frm->setByteOrder(view.Order);
