@@ -1,6 +1,7 @@
 #include <QtTest>
 #include <tuple>
 #include "mbmap.h"
+#include "displaydefinition.h"
 
 ///
 /// \brief Tests of reading .mbmap.json device maps and laying them out in windows
@@ -19,6 +20,7 @@ private slots:
     void keepsWriteOnlyRegistersOutOfReads();
     void ignoresByteOrderForBool();
     void placesTheLastAddressWithBase1();
+    void pollsTheLastAddressWithBase1();
     void keepsWriteOnlyBarriersOfRegistersItCannotShow();
     void keepsDownloadedMapsInsideTheirFolder();
 };
@@ -303,6 +305,41 @@ void TestMbMap::placesTheLastAddressWithBase1()
     const auto p = MbMap::placement(zero, 0);
     QVERIFY(p.ZeroBased);
     QCOMPARE(p.Address, quint16(7));
+}
+
+///
+/// \brief A window placed at the last wire address passes the check the
+/// window makes before polling, as MainWindow::openMap() sets it up.
+///
+void TestMbMap::pollsTheLastAddressWithBase1()
+{
+    const auto map = parse(R"({
+        "mbmap": 2, "vendor": "V", "model": "M", "address_base": 1,
+        "registers": [
+            {"name": "Last", "area": "holding", "address": 65536, "type": "uint16"}
+        ]
+    })");
+    const auto views = map.views();
+    QCOMPARE(views.size(), 1);
+
+    DisplayDefinition dd;
+    dd.PointType = views[0].Area;
+    const auto placement = MbMap::placement(views[0], map.AddressBase);
+    dd.ZeroBasedAddress = placement.ZeroBased;
+    dd.PointAddress = placement.Address;
+    dd.Length = views[0].Length;
+    dd.normalize();
+
+    QCOMPARE(dd.PointAddress, quint16(65535));
+    QCOMPARE(dd.Length, quint16(1));
+    QVERIFY(ModbusLimits::isReadable(dd.PointAddress, dd.ZeroBasedAddress, dd.Length, dd.AddrSpace));
+
+    // the same boundary in both numberings, and one past it
+    QVERIFY(ModbusLimits::isReadable(65536, false, 1, AddressSpace::Addr6Digits));
+    QVERIFY(!ModbusLimits::isReadable(65535, true, 2, AddressSpace::Addr6Digits));
+    QVERIFY(!ModbusLimits::isReadable(65536, false, 2, AddressSpace::Addr6Digits));
+    QVERIFY(ModbusLimits::isReadable(9998, true, 1, AddressSpace::Addr5Digits));
+    QVERIFY(!ModbusLimits::isReadable(9999, true, 1, AddressSpace::Addr5Digits));
 }
 
 ///

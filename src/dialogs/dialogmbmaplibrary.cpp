@@ -91,6 +91,7 @@ void DialogMbmapLibrary::on_indexFinished()
     ui->treeWidget->setSortingEnabled(true);
     ui->treeWidget->resizeColumnToContents(0);
     ui->treeWidget->resizeColumnToContents(1);
+    on_lineEditFilter_textChanged(ui->lineEditFilter->text());
 
     setBusy(false, tr("%n map(s)", nullptr, ui->treeWidget->topLevelItemCount()));
 }
